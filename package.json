@@ -1,0 +1,3 @@
+{ "name": "nahwaerme-vergleich", "private": true,
+  "scripts": { "einbauen": "node werkzeug/einbauen.js", "pruefen": "node werkzeug/pruefen.js" },
+  "devDependencies": { "jsdom": "^24.0.0" } }

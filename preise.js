@@ -4,6 +4,8 @@
  * Gas:    ct/kWh brutto inkl. Grundpreis, 20.000 kWh/a (Verivox); Aufteilung über gas.grundpreisMonat
  * Flüssiggas: €/100 l inkl. MwSt. je Region (Brennstoffboerse.de, Tagespreise)
  * Pellets: €/t inkl. MwSt. und Lieferung, ENplus A1 (DEPI-Pelletpreis, monatlich)
+ * Scheitholz/Kaminofen: €/Ster (TFZ Bayern, quartalsweise); Hackgut: €/MWh (C.A.R.M.E.N., quartalsweise)
+ * Nach jeder Änderung: node werkzeug/einbauen.js && node werkzeug/pruefen.js
  * Fehlt ein Landeswert, wird der Bundesdurchschnitt verwendet.
  */
 window.PREISE = {
@@ -128,6 +130,18 @@ window.PREISE = {
     zuordnung: { BW: 'sued', BY: 'sued', HE: 'mitte', NW: 'mitte', RP: 'mitte', SL: 'mitte', TH: 'mitte',
                  BE: 'nordost', BB: 'nordost', HB: 'nordost', HH: 'nordost', MV: 'nordost', NI: 'nordost',
                  SN: 'nordost', ST: 'nordost', SH: 'nordost' }
+  },
+  /* Scheitholz und Kaminofen: TFZ Bayern, bundesweiter Durchschnitt (€/Ster). */
+  holz: {
+    preis: 144.66, stand: 'Juli 2026',
+    quelle: 'TFZ Bayern, Ø Deutschland, Hartholz (Buche) 33 cm gespalten, ofenfertig, inkl. MwSt. und Lieferung bis 10 km'
+  },
+  /* Hackgut: C.A.R.M.E.N. e.V., Waldhackschnitzel WG 35 %, Ø Deutschland, brutto inkl. Lieferung.
+   * Im Rechner: €/SRM = mwh × Heizwert (Standard 679 kWh/SRM) / 1000. */
+  hack: {
+    mwh: 33.17, tonne: 102.82, stand: '3. Quartal 2026',
+    quelle: 'C.A.R.M.E.N. e.V., Waldhackschnitzel Wassergehalt 35 %, Ø Deutschland, brutto inkl. Lieferung (80 SRM, Umkreis 20 km)',
+    link: 'https://www.carmen-ev.de/service/marktueberblick-erneuerbare-energien/marktpreise-energieholz/marktpreise-hackschnitzel/'
   },
   /* KfW 458 – BEG Heizungsförderung für Privatpersonen (Wohngebäude).
    * Datumsangaben 'ab' im Format JJJJ-MM-TT; es gilt jeweils der letzte Eintrag mit ab <= heute. */
