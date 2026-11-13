@@ -1,4 +1,4 @@
-/* Prüft Marktpreise (Plausibilität) und die Prüffälle aus Abschnitt 11 der Spezifikation.
+/* Prüft die Richtwerte (Plausibilität), das Preisfenster und die Prüffälle aus Abschnitt 11 der Spezifikation.
  * Aufruf: node werkzeug/pruefen.js [datei.html ...]   (Standard: index.html). Exit-Code 1 bei Fehler. */
 'use strict';
 const fs = require('fs'), path = require('path');
@@ -14,18 +14,27 @@ for (const datei of dateien) {
   const w = d.window, E = (s) => w.eval(s), rows = [];
   const ok = (n, e, b, c) => { rows.push(`| ${n} | ${e} | ${b} | ${c ? 'OK' : 'FEHLER'} |`); if (!c) fehler++; };
 
-  // --- Plausibilität der Marktpreise ---
+  // --- Plausibilität der Richtwerte ---
   const P = E('window.PREISE');
-  const bereich = (n, x, lo, hi) => ok('Preis ' + n, `${lo}–${hi}`, String(x), typeof x === 'number' && x >= lo && x <= hi);
-  bereich('Heizöl Ø DE €/100 l', P.oel.de.wert, 50, 300);
-  Object.entries(P.oel.laender).forEach(([k, v]) => { if (!(v.wert >= 50 && v.wert <= 300)) ok('Heizöl ' + k, '50–300', String(v.wert), false); });
-  bereich('Erdgas Ø DE ct/kWh', P.gas.de.wert, 5, 40);
-  Object.entries(P.gas.laender).forEach(([k, v]) => { if (!(v.wert >= 5 && v.wert <= 40)) ok('Erdgas ' + k, '5–40', String(v.wert), false); });
-  bereich('Flüssiggas Ø €/100 l (3.000 l)', P.fluessiggas.schnitt.l3000, 40, 200);
-  Object.entries(P.fluessiggas.staedte).forEach(([k, v]) => { if (!(v.l3000 >= 40 && v.l3000 <= 200 && v.l5000 >= 40 && v.l5000 <= 200)) ok('Flüssiggas ' + k, '40–200', JSON.stringify(v), false); });
-  bereich('Pellets Ø €/t (6 t)', P.pellets.de6, 200, 900);
+  const bereich = (n, x, lo, hi) => ok('Richtwert ' + n, `${lo}–${hi}`, String(x), typeof x === 'number' && x >= lo && x <= hi);
+  ok('Stand Richtwerte', 'TT.MM.JJJJ', String(P.stand), /^\d{2}\.\d{2}\.\d{4}$/.test(P.stand));
+  bereich('Heizöl €/l', P.oel.preis, 0.5, 3);
+  bereich('Erdgas €/kWh', P.gas.preis, 0.05, 0.4);
+  bereich('Flüssiggas €/l', P.fluessiggas.preis, 0.4, 2);
+  bereich('Pellets €/t', P.pellets.preis, 200, 900);
   bereich('Scheitholz €/Ster', P.holz.preis, 60, 300);
   bereich('Hackgut €/MWh', P.hack.mwh, 15, 80);
+  const vorbelegt = E('(()=>{S=WV.vorgabenAnwenden(WV.vorlageLeer());marktpreiseAnwenden(true);return [S.v.oel.preis,S.v.gas.preis,S.v.gas.grund,S.v.holz.preis];})()');
+  ok('Vorbelegung = Richtwerte', `${P.oel.preis} · ${P.gas.preis} · ${P.gas.grundMonat} · ${P.holz.preis}`, vorbelegt.join(' · '),
+    vorbelegt[0] === P.oel.preis && vorbelegt[1] === P.gas.preis && vorbelegt[2] === P.gas.grundMonat && vorbelegt[3] === P.holz.preis);
+  E(`geheZu(schrittListe().findIndex(s=>s.id==='annahmen'))`);
+  const knopf = w.document.querySelector('[data-preise]');
+  if (knopf) knopf.click();
+  const dlg = w.document.querySelector('#dialogInhalt'), dtxt = dlg ? dlg.textContent : '';
+  const nLinks = dlg ? dlg.querySelectorAll('a[target="_blank"]').length : 0;
+  const fensterOk = !!knopf && /Keine Gewähr für Aktualität/.test(dtxt) && dtxt.includes('Stand ' + P.stand) && nLinks >= 6;
+  ok('Preisfenster', 'Stand, Haftungshinweis, 6 Links', `${knopf ? 'Knopf' : 'kein Knopf'} · ${nLinks} Links`, fensterOk);
+  E('dialogZu()');
 
   // --- Prüffälle Abschnitt 11 ---
   const reset = () => E(`S=WV.vorgabenAnwenden(WV.vorlageLeer());S.erhebung.forEach(z=>z.aktiv=false);aenderung(true);`);
@@ -58,7 +67,7 @@ for (const datei of dateien) {
   const has = !!w.document.querySelector('[data-gasart]');
   ok('7 ohne Gas im Bestand', 'keine Gas-Auswahl', has ? 'Auswahl sichtbar' : 'keine Auswahl', !has && sichtGas);
   ok('Skriptfehler', 'keine', errs.length ? errs.join('; ') : 'keine', errs.length === 0);
-  console.log('\n## ' + path.basename(path.dirname(datei)) + '/' + path.basename(datei) + ' – Preise vom ' + P.aktualisiert);
+  console.log('\n## ' + path.basename(path.dirname(datei)) + '/' + path.basename(datei) + ' – Richtwerte Stand ' + P.stand);
   console.log('| Prüfung | erwartet | berechnet | OK |\n|---|---|---|---|\n' + rows.join('\n'));
 }
 console.log(fehler ? `\n${fehler} FEHLER – nicht veröffentlichen.` : '\nAlle Prüfungen OK.');
