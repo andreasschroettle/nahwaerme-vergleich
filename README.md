@@ -1,6 +1,6 @@
 # Vergleich Bestandsheizung – Nahwärme
 
-Web-Rechner von Biowärme Bechhofen und Tobias Ulfig – Heizung · Sanitär.
+Web-Rechner der ENERPIPE GmbH.
 
 Online: https://andreasschroettle.github.io/nahwaerme-vergleich/
 
