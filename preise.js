@@ -7,7 +7,7 @@ window.PREISE = {
   stand: '01.11.2026',
   herausgeber: 'ENERPIPE GmbH',
   hinweis: 'Pauschale Richtwerte ohne Gewähr für Aktualität und Richtigkeit. Brennstoffpreise schwanken täglich und regional.',
-  oel:         { preis: 1.70,  einheit: '€/l',         text: 'Heizöl EL, inkl. MwSt. und Lieferung' },
+  oel:         { preis: 1.65,  einheit: '€/l',         text: 'Heizöl EL, inkl. MwSt. und Lieferung' },
   gas:         { preis: 0.133, grundMonat: 12, einheit: '€/kWh', text: 'Erdgas, Arbeitspreis inkl. MwSt., zzgl. Grundpreis' },
   fluessiggas: { preis: 0.95,  einheit: '€/l',         text: 'Flüssiggas, inkl. MwSt. und Lieferung', heizwert: 6.57,
     tank: {
