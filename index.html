@@ -199,8 +199,16 @@
   .rwtab { width: 100%; border-collapse: collapse; margin: 6px 0 4px; }
   .rwtab td { white-space: normal; padding: 7px 6px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
   .rwtab td:first-child { font-weight: 600; padding-right: 14px; width: 34%; }
+  .rwtab.preise th { text-align: left; font-size: 13px; color: var(--muted, #666); padding: 4px 6px; font-weight: 600; }
+  .rwtab.preise td { vertical-align: middle; }
+  .rwtab.preise td:first-child { width: 36%; }
+  .preisfeld { display: flex; align-items: center; gap: 6px; }
+  .preisfeld input { width: 100%; min-width: 70px; max-width: 120px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; font: inherit; text-align: right; background: var(--surface); color: var(--text); }
+  .preisfeld span { font-size: 13px; white-space: nowrap; }
+  @media (max-width: 560px) { .rwtab.preise thead { display: none; } .rwtab.preise tr { display: block; border-bottom: 1px solid var(--line); padding: 6px 0; } .rwtab.preise td { display: block; border: 0; width: auto !important; padding: 3px 0; } }
   .dialog textarea { width: 100%; min-height: 180px; font: 12px ui-monospace, Consolas, monospace; border: 1px solid var(--line); border-radius: 8px; padding: 8px; background: var(--surface-2); color: var(--text); }
-  .dialog .knoepfe { display: flex; gap: 8px; justify-content: flex-end; margin-top: 14px; }
+  .dialog .knoepfe { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; margin-top: 14px; }
+  @media (max-width: 560px) { .dialog .knoepfe .btn { flex: 1 1 100%; } }
   .toast { position: fixed; bottom: 76px; left: 50%; transform: translateX(-50%); background: var(--text); color: var(--bg); padding: 8px 16px;
     border-radius: 8px; font-size: 14px; opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 40; }
   .toast.an { opacity: 1; }
@@ -1281,7 +1289,7 @@ function seiteStart() {
     <div class="felder" style="margin-bottom:18px">${textFeld({ label: 'Objekt / Kunde', wert: S.titel, set: (v) => { S.titel = v; }, platzhalter: 'z. B. Rathaus Musterdorf' })}
       <div class="feld"><label for="plzFeld">PLZ des Objekts</label>
         <div class="eingabe"><input class="txt" id="plzFeld" data-plz inputmode="numeric" maxlength="5" autocomplete="postal-code" value="${esc(S.plz || '')}" placeholder="z. B. 86754"></div>
-        <div class="hilfe">Bestimmt die regionalen Öl- und Gaspreise</div></div>
+        <div class="hilfe">Für die Preis-Links und den Energieberater</div></div>
       <div class="feld"><label for="landFeld">Bundesland</label>
         <div class="eingabe"><select id="landFeld" data-land><option value="">– Bundesdurchschnitt –</option>
           ${Object.keys(LAENDER).map((k) => `<option value="${k}" ${S.land === k ? 'selected' : ''}>${LAENDER[k][0]}</option>`).join('')}</select></div>
@@ -1326,28 +1334,77 @@ function marktpreisBox() {
     : '<span class="marke">eigene Preise</span> <button class="btn klein" data-markt>Richtwerte wieder verwenden</button>';
   return `<div class="marktpreis">
       <div style="flex:1;min-width:260px"><b>Brennstoffpreise: pauschale ENERPIPE-Richtwerte, Stand ${esc(RW_STAND)}</b> ${status}<br>
-        <span class="info">Keine Gewähr für Aktualität. Bitte den aktuellen Preis selbst ermitteln und in der Tabelle unter „Brennstoffpreis“ eintragen.</span></div>
-      <div class="links no-print"><button class="btn primaer klein" data-preise>Preise und Links zu Anbietern</button></div>
+        <span class="info">Keine Gewähr für Aktualität. Bitte den aktuellen Preis selbst ermitteln und eintragen.</span></div>
+      <div class="links no-print"><button class="btn primaer klein" data-preise>Preise eintragen</button></div>
     </div>`;
 }
+/** Preisfenster: öffnet sich beim ersten Aufruf von „Erneuerung Bestand“ von selbst; Preise direkt hier eintragen. */
+let preisFensterGezeigt = false;
+function preisPosten() {
+  const lk = {}; preisLinks().forEach((x) => { lk[x.k] = x; });
+  return VGL.filter((k) => ['oel', 'gas', 'holz', 'kofen', 'pellets', 'hack'].includes(k)).map((k) => {
+    const fl = k === 'gas' && gasArt() === 'fluessig';
+    const einh = (R.ergebnisse[k] && R.ergebnisse[k].eingabe.einheit) || '';
+    const p = { k, name: R.ergebnisse[k] ? R.ergebnisse[k].name : k, fk: 1, dez: 4, einheit: '€/' + einh };
+    if (k === 'oel') Object.assign(p, { rw: RW.oel.preis, einheit: '€/l', link: lk.oel });
+    else if (k === 'gas' && fl) Object.assign(p, { rw: RW.fluessiggas.preis, einheit: '€/l', link: lk.fluessiggas });
+    else if (k === 'gas') Object.assign(p, { rw: RW.gas.preis, fk: 100, dez: 2, einheit: 'ct/kWh', link: lk.gas, grund: true });
+    else if (k === 'pellets') Object.assign(p, { rw: RW.pellets.preis / 1000, einheit: '€/kg', link: lk.pellets });
+    else if (k === 'holz' || k === 'kofen') Object.assign(p, { rw: HOLZPREIS.preis, dez: 2, einheit: '€/Ster', link: lk.holz });
+    else if (k === 'hack') Object.assign(p, { rw: hackPreisSrm(), dez: 2, einheit: '€/SRM', link: lk.hack });
+    return p;
+  });
+}
+const preisTxt = (x, fk, dez) => fmtFlex(+(x * fk).toFixed(dez));
 function dialogPreise() {
-  const zeilen = richtwertZeilen().map(([t, w]) => `<tr><td>${esc(t)}</td><td>${esc(w)}</td></tr>`).join('');
-  const links = preisLinks().map((x) => `<li>${esc(x.t)}: <a href="${esc(x.u)}" target="_blank" rel="noopener">${esc(x.name)} ↗</a></li>`).join('');
-  dialog(`<h3>Brennstoffpreise</h3>
+  const posten = preisPosten();
+  const linkHtml = (x) => x ? `<a href="${esc(x.u)}" target="_blank" rel="noopener">${esc(x.name)} ↗</a>` : '';
+  const eingaben = posten.map((p, i) => {
+    const akt = S.v[p.k].preis;
+    let h = `<tr><td>${esc(p.name)}<br><span class="info">Richtwert ${esc(preisTxt(p.rw, p.fk, p.dez))} ${esc(p.einheit)}</span></td>
+      <td><div class="preisfeld"><input id="pf${i}" inputmode="decimal" autocomplete="off" aria-label="${esc(p.name + ': Preis in ' + p.einheit)}"
+        value="${akt == null ? '' : esc(preisTxt(akt, p.fk, p.dez))}" placeholder="${esc(preisTxt(p.rw, p.fk, p.dez))}"><span>${esc(p.einheit)}</span></div></td>
+      <td>${linkHtml(p.link)}</td></tr>`;
+    if (p.grund) h += `<tr><td>${esc(p.name)} – Grundpreis<br><span class="info">Richtwert ${esc(fmtFlex(RW.gas.grundMonat || 0))} €/Monat</span></td>
+      <td><div class="preisfeld"><input id="pfGrund" inputmode="decimal" autocomplete="off" aria-label="Grundpreis in €/Monat"
+        value="${S.v.gas.grund == null ? '' : esc(fmtFlex(S.v.gas.grund))}" placeholder="${esc(fmtFlex(RW.gas.grundMonat || 0))}"><span>€/Monat</span></div></td><td></td></tr>`;
+    return h;
+  }).join('');
+  const alleLinks = preisLinks().map((x) => `<li>${esc(x.t)}: ${linkHtml(x)}</li>`).join('');
+  const tabelle = posten.length
+    ? `<table class="rwtab preise"><thead><tr><th>Heizsystem</th><th>Ihr aktueller Preis (brutto)</th><th>Preis nachsehen</th></tr></thead><tbody>${eingaben}</tbody></table>`
+    : `<table class="rwtab"><tbody>${richtwertZeilen().map(([t, w]) => `<tr><td>${esc(t)}</td><td>${esc(w)}</td></tr>`).join('')}</tbody></table>
+       <p style="margin-bottom:4px"><b>Aktuelle Preise bei Anbietern nachsehen</b></p><ul style="margin-top:4px">${alleLinks}</ul>`;
+  dialog(`<h3>Bitte aktuelle Brennstoffpreise eintragen</h3>
     <p>Vorbelegt sind pauschale Richtwerte der ENERPIPE GmbH, <b>Stand ${esc(RW_STAND)}</b>, bundesweit einheitlich, brutto inkl. MwSt. und Lieferung.</p>
-    <table class="rwtab"><tbody>${zeilen}</tbody></table>
-    <div class="hinweis" style="margin-top:12px"><b>Keine Gewähr für Aktualität.</b> Die Richtwerte werden nicht laufend aktualisiert.
-      Brennstoffpreise schwanken täglich und regional. Bitte ermitteln Sie Ihren aktuellen Preis selbst, z. B. für Ihre Postleitzahl,
-      und tragen Sie ihn auf dieser Seite in der Tabelle unter „Brennstoffpreis“ ein. Dann rechnet der Vergleich mit Ihrem Preis.</div>
-    <p style="margin-bottom:4px"><b>Aktuelle Preise bei Anbietern nachsehen</b></p>
-    <ul style="margin-top:4px">${links}</ul>
-    <p class="info">Externe Seiten, die sich erst nach Ihrem Klick in einem neuen Fenster öffnen. Die Anbieter stehen in keiner Verbindung zur ENERPIPE GmbH;
-      für deren Inhalte und Preise sind ausschließlich die Betreiber verantwortlich.</p>
+    <div class="hinweis" style="margin:10px 0 12px"><b>Keine Gewähr für Aktualität.</b> Die Richtwerte werden nicht laufend aktualisiert.
+      Brennstoffpreise schwanken täglich und regional. Bitte ermitteln Sie Ihren aktuellen Preis selbst${S.plz ? ' für die PLZ ' + esc(S.plz) : ', z. B. für Ihre Postleitzahl'},
+      und tragen Sie ihn hier ein. Ein leeres Feld rechnet mit dem Richtwert.</div>
+    ${tabelle}
+    <p class="info" id="pfFehler" style="color:var(--bad, #b42318)"></p>
+    <p class="info">Externe Seiten öffnen sich erst nach Ihrem Klick in einem neuen Fenster. Die Anbieter stehen in keiner Verbindung zur ENERPIPE GmbH;
+      für deren Inhalte und Preise sind ausschließlich die Betreiber verantwortlich. Die Preise lassen sich später auch in der Tabelle unter „Brennstoffpreis“ ändern.</p>
     <div class="knoepfe">${S.plz ? `<button class="btn" data-plzkopie>PLZ ${esc(S.plz)} kopieren</button>` : ''}
-      ${S.preisAuto ? '' : '<button class="btn" id="dRw">Richtwerte wieder verwenden</button>'}
-      <button class="btn primaer" id="dOk">Schließen</button></div>`);
-  $('#dialogInhalt').scrollTop = 0; $('#dOk').onclick = dialogZu;
+      ${posten.length ? '<button class="btn" id="dRw">Richtwerte verwenden</button><button class="btn primaer" id="dOk">Preise übernehmen</button>' : '<button class="btn primaer" id="dOk">Schließen</button>'}</div>`);
+  $('#dialogInhalt').scrollTop = 0;
   const rw = $('#dRw'); if (rw) rw.onclick = () => { dialogZu(); marktpreiseAnwenden(true); aenderung(true); toast('Richtwerte übernommen'); };
+  $('#dOk').onclick = () => {
+    if (!posten.length) { dialogZu(); return; }
+    const neu = []; let fehler = '';
+    posten.forEach((p, i) => {
+      const v = zahl($('#pf' + i).value);
+      if (Number.isNaN(v) || (v != null && v <= 0)) fehler = fehler || `Bitte eine gültige Zahl für ${p.name} eintragen.`;
+      neu.push([p, v == null ? p.rw : v / p.fk]);
+    });
+    let grund = null;
+    if ($('#pfGrund')) { const g = zahl($('#pfGrund').value); if (Number.isNaN(g) || (g != null && g < 0)) fehler = fehler || 'Bitte einen gültigen Grundpreis eintragen.'; grund = g == null ? (RW.gas.grundMonat || 0) : g; }
+    if (fehler) { $('#pfFehler').textContent = fehler; return; }
+    let eigen = false;
+    neu.forEach(([p, v]) => { S.v[p.k].preis = +v.toFixed(5); if (Math.abs(v - p.rw) > 1e-9) eigen = true; });
+    if (grund != null) { S.v.gas.grund = grund; if (Math.abs(grund - (RW.gas.grundMonat || 0)) > 1e-9) eigen = true; }
+    S.preisAuto = !eigen;
+    dialogZu(); aenderung(true); toast(eigen ? 'Eigene Preise übernommen' : 'Richtwerte übernommen');
+  };
 }
 
 function landHinweis() {
@@ -1902,6 +1959,7 @@ function geheZu(i) {
   window.scrollTo(0, 0);
   const erstes = $('#seite input:not([type=checkbox])') || $('#seite input');
   if (erstes && schrittListe()[schritt].id !== 'ergebnis') erstes.focus({ preventScroll: true });
+  if (schrittListe()[schritt].id === 'annahmen' && !preisFensterGezeigt && preisPosten().length) { preisFensterGezeigt = true; dialogPreise(); }
 }
 
 /* ----------------------------- Plausibilität Verbrauch ----------------- */
@@ -1996,7 +2054,7 @@ function menue(auf) {
 }
 
 /* ----------------------------- Aktionen -------------------------------- */
-function laden(neu, meldung) { S = WV.vorgabenAnwenden(migrieren(neu)); S.hinweisOk = false; marktpreiseAnwenden(false); schritt = 0; aenderung(true); if (meldung) toast(meldung); }
+function laden(neu, meldung) { S = WV.vorgabenAnwenden(migrieren(neu)); S.hinweisOk = false; preisFensterGezeigt = false; marktpreiseAnwenden(false); schritt = 0; aenderung(true); if (meldung) toast(meldung); }
 
 function aktion(a) {
   if (a === 'neu') return frage('Neuer Vergleich', 'Alle aktuellen Eingaben werden verworfen. Gespeicherte Vergleiche bleiben erhalten.', 'Neu beginnen',
