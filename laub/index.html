@@ -284,6 +284,44 @@
   .ff-bild { flex: 0 1 340px; width: 100%; max-width: 340px; height: auto; border-radius: 12px; background: #fff; }
   @media (max-width: 640px) { .ff-bild { max-width: 100%; flex-basis: 100%; } }
   @media print { .ff-bild { max-width: 240px; } }
+
+  /* Ergebnisseite am Handy */
+  .ergkarten { display: none; }
+  .ek { border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; background: var(--surface); }
+  .ek.best { border: 2px solid var(--brand); background: linear-gradient(135deg, var(--brand-softer), #ffffff); }
+  .ek-kopf { display: flex; align-items: center; gap: 10px; font-size: 17px; }
+  .ek-rang { flex: 0 0 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-size: 13px; font-weight: 700; background: var(--surface-2); border: 1px solid var(--line); }
+  .ek.best .ek-rang { background: var(--brand); border-color: var(--brand); color: #fff; }
+  .ek-haupt { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+  .ek-haupt span { display: block; font-size: 12px; color: var(--text-2); }
+  .ek-haupt b { font-size: 19px; font-family: "Barlow Semi Condensed", Inter, sans-serif; }
+  .ek-delta { margin-top: 6px; font-size: 13px; color: var(--text-2); }
+  .ek details { margin-top: 8px; }
+  .ek summary { cursor: pointer; font-size: 13px; color: var(--brand-dark); font-weight: 600; }
+  .ek dl { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; margin: 8px 0 0; font-size: 13px; }
+  .ek dt { color: var(--text-2); } .ek dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  @media (max-width: 640px) {
+    .jk-tabelle { display: none; }
+    .ergkarten { display: grid; gap: 10px; margin: 6px 0 10px; }
+    section.seite.erg { display: flex; flex-direction: column; }
+    section.seite.erg > .fibreflex { order: 2; margin-top: 26px; }
+    section.seite.erg > .erg-knoepfe { order: 3; margin-top: 18px !important; }
+    section.seite.erg > * { min-width: 0; }
+    .fibreflex { padding: 14px 12px; }
+    .fftab thead { display: none; }
+    .fftab, .fftab tbody { display: block; }
+    .fftab tr { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px 8px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+    .fftab tr.summe { border-top: 2px solid var(--brand); }
+    .fftab td { display: block; border: 0 !important; padding: 0 !important; text-align: left !important; }
+    .fftab td:first-child { grid-column: 1 / -1; font-weight: 600; margin-bottom: 4px; }
+    .fftab td[data-l]::before { content: attr(data-l); display: block; font-size: 11px; color: var(--text-2); font-weight: 400; }
+    .verlauftab table { font-size: 12px; }
+    .verlauftab th, .verlauftab td { padding: 4px 6px; }
+    .verlauftab th:first-child, .verlauftab td:first-child { position: sticky; left: 0; background: var(--surface); }
+    .sieger .gross { font-size: 26px; }
+    .kpis { grid-template-columns: 1fr 1fr; }
+  }
+  @media print { .ergkarten { display: none !important; } .jk-tabelle { display: block !important; } }
   details > summary { color: var(--accent-ink); font-weight: 500; }
   a { color: var(--accent-ink); }
   .menue-liste { border-radius: 12px; }
@@ -1647,7 +1685,26 @@ function seiteErgebnis() {
   const VK = K.filter((k) => R.verlauf[k]);
   const zeile = (l, f, d = 0, einh = '€/a', cls = '') =>
     `<tr class="${cls}"><td>${l}</td>${K.map((k) => `<td>${fmt(f(E[k]), d)}</td>`).join('')}<td class="info">${einh}</td></tr>`;
-  const tabelle = `<div class="scroll"><table>
+  const zeilenDef = [
+    ['Investition', (e) => e.invAngesetzt, 0, '€'], ['Förderung', (e) => (e.foerderung ? -e.foerderung : 0), 0, '€'],
+    ['Investition nach Förderung', (e) => e.invNetto, 0, '€'], ['Kapitalkosten (Annuität)', (e) => e.kapital, 0, '€/a'],
+    ['Energiekosten', (e) => e.energie, 0, '€/a'], ['Grund-/Zählergebühr', (e) => e.grund, 0, '€/a'],
+    ['Wartung, Kaminkehrer, Sonstiges', (e) => e.nebenkosten, 0, '€/a'], ['Laufende Kosten', (e) => e.laufend, 0, '€/a'],
+    ['Wärmepreis laufend', (e) => e.ctLaufend, 2, 'ct/kWh'], ['+ Abschreibung', (e) => e.ctKapital, 2, 'ct/kWh'],
+  ];
+  const sortiert = K.slice().sort((a, b) => (E[a].rang ?? 99) - (E[b].rang ?? 99));
+  const karten = `<div class="ergkarten">${sortiert.map((k) => {
+    const e = E[k];
+    const delta = !nw.fehlt.length && k !== 'nw1' && isFinite(e.deltaNW)
+      ? `<div class="ek-delta">${e.deltaNW >= 0 ? fmt(e.deltaNW) + ' €/a teurer' : fmt(-e.deltaNW) + ' €/a günstiger'} als ${esc(nw.name)}</div>` : '';
+    return `<div class="ek${k === R.guenstigste ? ' best' : ''}">
+      <div class="ek-kopf"><span class="ek-rang">${e.rang ?? '–'}</span><b>${esc(e.name)}</b></div>
+      <div class="ek-haupt"><div><span>Gesamtkosten</span><b>${fmt(e.gesamt)} €/a</b></div><div><span>Wärmepreis effektiv</span><b>${fmt(e.ctEffektiv, 2)} ct/kWh</b></div></div>
+      ${delta}
+      <details><summary>Alle Werte</summary><dl>${zeilenDef.map(([l, f, d, einh]) => `<dt>${l}</dt><dd>${fmt(f(e), d)} ${einh}</dd>`).join('')}</dl></details>
+    </div>`;
+  }).join('')}</div>`;
+  const tabelle = `<div class="scroll jk-tabelle"><table>
     <thead><tr><th></th>${K.map((k) => `<th>${esc(E[k].name)}</th>`).join('')}<th></th></tr></thead><tbody>
     ${zeile('Investition', (e) => e.invAngesetzt, 0, '€')}
     ${zeile('Förderung', (e) => (e.foerderung ? -e.foerderung : 0), 0, '€')}
@@ -1664,10 +1721,11 @@ function seiteErgebnis() {
     <tr><td>Rang</td>${K.map((k) => `<td>${E[k].rang ?? '–'}</td>`).join('')}<td></td></tr>
     ${nw.fehlt.length ? '' : zeile('Mehr-/Minderkosten ggü. ' + esc(nw.name), (e) => e.deltaNW)}
     </tbody></table></div>
+    ${karten}
     <p class="info">${nw.fehlt.length ? 'Nahwärme ohne Angebotspreise – nicht bewertet.' : 'Mehr-/Minderkosten: positiv = teurer als Nahwärme.'}</p>
 `;
 
-  return `<section class="seite">
+  return `<section class="seite erg">
     <h2>Ergebnis${S.titel ? ' – ' + esc(S.titel) : ''}</h2>
     ${warnungenHtml()}
     ${fibreflexBox()}
@@ -1693,11 +1751,11 @@ function seiteErgebnis() {
       (Heizungen und Nahwärme-Anschluss)${ersatzText()}. Ohne Preissteigerung, Zinsen und Restwerte.</p>
     <div class="legende linie">${VK.map((k) => `<span style="--c:${FARBE[k]}">${esc(E[k].name)}</span>`).join('')}</div>
     <div class="chart" id="verlauf"></div>
-    <details><summary>Verlauf als Tabelle</summary><div class="scroll">${verlaufTabelle()}</div></details>
+    <details><summary>Verlauf als Tabelle</summary><div class="scroll verlauftab">${verlaufTabelle()}</div></details>
     <p class="info" style="margin-top:18px">Hinweis: Vereinfachte Vergleichsrechnung. Nahwärme-Anschlusskosten ohne Umfeldmaßnahmen
       (Anschluss Puffer ans Haus, Oberflächen, hydraulischer Abgleich, Energieberater). Öl- und Gaspreise der Präsentation gelten für Kleinmengen;
       bei größeren Mengen sind Mengenpreise realistisch. Förderung: ${esc(kfwErgebnis().text)}.</p>
-    <div class="no-print" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
+    <div class="no-print erg-knoepfe" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
       <button class="btn" data-akt="kopieren">Ergebnis kopieren (für Excel)</button>
       <button class="btn" data-akt="speichern">Speichern unter …</button>
     </div>
@@ -1747,13 +1805,13 @@ function fibreflexBox() {
           Die geringere Wandstärke verbessert die Wärmeübertragung und schafft Platz für mehr Dämmung: erheblich weniger Wärmeverluste.
           Effizient, sparsam und zukunftssicher.</p></div>
     </div>
-    <div class="scroll"><table>
+    <div class="scroll"><table class="fftab">
       <thead><tr><th>FibreFLEX PN 10 (PE-Xa mit Aramidfasergeflecht)</th><th>Betriebsdruck</th><th>Sicherheitsfaktor</th><th>Lebensdauer</th></tr></thead>
       <tbody>
-        <tr><td>Dauerbetrieb 70 °C</td><td>bis 12 bar</td><td>1,5</td><td>100 Jahre</td></tr>
-        <tr><td>Dauerbetrieb 80 °C</td><td>bis 10 bar</td><td>1,5</td><td>50 Jahre</td></tr>
-        <tr><td>Dauerbetrieb 85 °C</td><td>bis 9 bar</td><td>1,3</td><td>30 Jahre</td></tr>
-        <tr class="summe"><td>Beispielrechnung gleitende Fahrweise (Vorlauf 70–90 °C, Rücklauf 50–55 °C)</td><td>9 bar</td><td>1,5 / 1,3</td><td>60 Jahre</td></tr>
+        <tr><td>Dauerbetrieb 70 °C</td><td data-l="Betriebsdruck">bis 12 bar</td><td data-l="Sicherheitsfaktor">1,5</td><td data-l="Lebensdauer">100 Jahre</td></tr>
+        <tr><td>Dauerbetrieb 80 °C</td><td data-l="Betriebsdruck">bis 10 bar</td><td data-l="Sicherheitsfaktor">1,5</td><td data-l="Lebensdauer">50 Jahre</td></tr>
+        <tr><td>Dauerbetrieb 85 °C</td><td data-l="Betriebsdruck">bis 9 bar</td><td data-l="Sicherheitsfaktor">1,3</td><td data-l="Lebensdauer">30 Jahre</td></tr>
+        <tr class="summe"><td>Beispielrechnung gleitende Fahrweise (Vorlauf 70–90 °C, Rücklauf 50–55 °C)</td><td data-l="Betriebsdruck">9 bar</td><td data-l="Sicherheitsfaktor">1,5 / 1,3</td><td data-l="Lebensdauer">60 Jahre</td></tr>
       </tbody></table></div>
     <p class="info">Quelle: Enerpipe Rohrsysteme – Technische Information Nr. 821000100 (02/2026), Tab. 12a, Tab. 19 und Betriebsdauerberechnung (S. 16–17).</p>
     <p class="info">Sicherheitsfaktor ist bereits eingerechnet. Die Lebensdauern beruhen auf den zulässigen Betriebsdrücken nach OFI ZG 200-2 bzw. ISO 15875-2
@@ -1790,11 +1848,12 @@ function verlaufTabelle() {
 function zeichneBalken() {
   const el = $('#balken'); if (!el) return;
   const K = sichtbar().filter((k) => isFinite(R.ergebnisse[k].ctEffektiv)).sort((a, b) => R.ergebnisse[a].ctEffektiv - R.ergebnisse[b].ctEffektiv);
-  const W = Math.max(320, el.clientWidth), zeileH = 34, links = 170, rechts = 70, oben = 8;
+  const W = Math.max(260, el.clientWidth), schmal = W < 520, zeileH = 34, links = schmal ? 128 : 170, rechts = schmal ? 46 : 70, oben = 8;
   const H = oben + K.length * zeileH + 24;
   const max = Math.max(...K.map((k) => R.ergebnisse[k].ctEffektiv)) * 1.05 || 1;
   const x = (v) => links + (W - links - rechts) * v / max;
-  const schritt = max > 20 ? 5 : max > 8 ? 2 : 1;
+  const proPx = max / Math.max(1, W - links - rechts);
+  const schritt = [1, 2, 5, 10, 20, 50].find((st) => st / proPx >= (schmal ? 38 : 70)) || 50;
   let g = '';
   for (let t = 0; t <= max; t += schritt) {
     g += `<line x1="${x(t)}" x2="${x(t)}" y1="${oben}" y2="${H - 22}" stroke="var(--line)" stroke-width="1"/>
@@ -1806,13 +1865,13 @@ function zeichneBalken() {
     const fett = k === R.guenstigste ? ' font-weight="700"' : '';
     g += `<g data-tip="${k}">
       <rect x="0" y="${y - 6}" width="${W}" height="${zeileH}" fill="transparent"/>
-      <text x="${links - 10}" y="${y + h / 2 + 4}" font-size="13" fill="var(--text)" text-anchor="end"${fett}>${esc(e.name)}</text>
+      <text x="${links - 8}" y="${y + h / 2 + 4}" font-size="${schmal ? 11.5 : 13}" fill="var(--text)" text-anchor="end"${fett}>${esc(schmal ? e.name.replace(' J. Afa', ' J.') : e.name)}</text>
       <rect x="${x(0)}" y="${y}" width="${Math.max(0, w1 - 1)}" height="${h}" rx="4" fill="var(--bar1)"/>
       <rect x="${x(e.ctLaufend) + 1}" y="${y}" width="${Math.max(0, w2 - 1)}" height="${h}" rx="4" fill="var(--bar2)"/>
       <text x="${x(e.ctEffektiv) + 6}" y="${y + h / 2 + 4}" font-size="12" fill="var(--text)"${fett}>${fmt(e.ctEffektiv, 2)}</text></g>`;
   });
   el.innerHTML = `<svg width="${W}" height="${H}" role="img" aria-label="Wärmepreis je Variante in ct/kWh">${g}
-    <text x="${W - rechts + 6}" y="${H - 6}" font-size="11" fill="var(--text-3)">ct/kWh</text></svg><div class="tooltip"></div>`;
+    <text x="${W}" y="${H - 6}" font-size="11" fill="var(--text-3)" text-anchor="end">ct/kWh</text></svg><div class="tooltip"></div>`;
   const tip = $('.tooltip', el);
   el.querySelectorAll('g[data-tip]').forEach((gr) => {
     gr.addEventListener('mousemove', (ev) => {
